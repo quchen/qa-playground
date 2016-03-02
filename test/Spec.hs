@@ -37,19 +37,13 @@ sortTests
 sortTests gen algorithm =
     [ testProperty
         "Is idempotent"
-        (forAll gen (\xs ->
-            let _ = xs :: [Int]
-            in (algorithm . algorithm ~~ algorithm) xs ))
+        (forAll gen (algorithm . algorithm ~~ algorithm))
     , testProperty
         "Leaves length invariant"
-        (forAll gen (\xs ->
-            let _ = xs :: [Int]
-            in (length . algorithm ~~ length) xs ))
+        (forAll gen (length . algorithm ~~ length))
     , testProperty
         "Agrees with library sort function"
-        (forAll gen (\xs ->
-            let _ = xs :: [Int]
-            in (algorithm ~~ V.modify Heap.sort) xs ))
+        (forAll gen (algorithm ~~ V.modify Heap.sort))
     ]
   where
     infixl 2 ~~
