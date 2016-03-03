@@ -77,21 +77,27 @@ sortingTests gen f =
             "Agrees with library sort function"
             (QC.forAll gen
                     (f ~~ sort))
+        , QC.testProperty
+            "All vectors are palindromes"
+            (QC.forAll gen
+                    (f ~~ V.reverse . sort))
         ]
     , testGroup "SmallCheck"
         [ SC.testProperty
             "Only [] maps to []"
             (SC.existsUnique (\xs -> f xs == []))
         , SC.testProperty
+            "Only one input sorts to a singleton vector"
+            (SC.existsUnique (\xs -> V.length (f xs) == 1))
+        , SC.testProperty
             "Sorted list contains the smallest element of the input"
-            (SC.forAll (\xs ->
-                not (V.null xs) SC.==>
-                    V.find (== V.head (f xs)) xs == Just (V.minimum xs)))
+            (\xs -> not (V.null xs) SC.==>
+                V.find (== V.head (f xs)) xs == Just (V.minimum xs))
         ]
     , testGroup "HUnit"
         [ testCase
-            "Empty vector"
-            (assertEqual "Sorting nothing does nothing" [] (f []))
+            "sort [1] = []"
+            (assertEqual "" [1] (f []))
         , testCase
             "Example case: sort [7,9,6,5,3,2,1,8,0,4] = [0..9]"
             (let expected = [0..9::Int]

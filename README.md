@@ -8,6 +8,7 @@ available in the Haskell ecosystem.
     - [x] Probabilistic batch testing with **QuickCheck**
     - [x] Deterministic batch testing with **Smallcheck**
     - [x] Example test case testing with **HUnit**
+    - [x] Failing tests to show their reporting
 - [x] Generating coverage reports with **HPC**
 - [x] Benchmarking with **Criterion**
 
