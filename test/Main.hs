@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedLists     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Main (main) where
@@ -10,6 +11,7 @@ import qualified Data.Vector                 as V
 import qualified Data.Vector.Algorithms.Heap as Heap
 import           Test.QuickCheck
 import           Test.Tasty
+import           Test.Tasty.HUnit
 import           Test.Tasty.QuickCheck
 
 import qualified Sorting                     as Subject
@@ -42,26 +44,45 @@ sortingTests
     -> (Vector Int -> Vector Int)
     -> [TestTree]
 sortingTests gen algorithm =
-    [ testProperty
-        "Leaves sorted input invariant"
-        (forAll (fmap sort gen)
-                (algorithm ~~ id))
-    , testProperty
-        "Leaves length invariant"
-        (forAll gen
-                (length . algorithm ~~ length))
-    , testProperty
-        "Reversal of input doesn't matter"
-        (forAll gen
-                (algorithm . V.reverse ~~ algorithm))
-    , testProperty
-        "Is idempotent"
-        (forAll gen
-                (algorithm . algorithm ~~ algorithm))
-    , testProperty
-        "Agrees with library sort function"
-        (forAll gen
-                (algorithm ~~ V.modify Heap.sort))
+    [ testGroup "Quickcheck"
+        [ testProperty
+            "Leaves sorted input invariant"
+            (forAll (fmap sort gen)
+                    (algorithm ~~ id))
+        , testProperty
+            "Leaves length invariant"
+            (forAll gen
+                    (length . algorithm ~~ length))
+        , testProperty
+            "Reversal of input doesn't matter"
+            (forAll gen
+                    (algorithm . V.reverse ~~ algorithm))
+        , testProperty
+            "Is idempotent"
+            (forAll gen
+                    (algorithm . algorithm ~~ algorithm))
+        , testProperty
+            "Agrees with library sort function"
+            (forAll gen
+                    (algorithm ~~ sort))
+        ]
+    , testGroup "HUnit"
+        [ testCase
+            "Empty vector"
+            (assertEqual "Sorting nothing does nothing" [] (algorithm []))
+        , testCase
+            "Example case: sort [7,9,6,5,3,2,1,8,0,4] = [0..9]"
+            (let expected = [0..9::Int]
+                 actual = algorithm [7,9,6,5,3,2,1,8,0,4]
+             in assertEqual "" expected actual )
+        , testCaseSteps "Sorting powers of two" (\step -> do
+                step "Prepare input"
+                -- Ignore that Haskell is lazy for a moment :-)
+                let expected = V.fromList (take 10 (iterate (*2) 1))
+                    actual = algorithm (V.fromList (map ((2::Int)^) [0..9::Int]))
+                step "Perform test"
+                assertEqual "" expected actual)
+        ]
     ]
   where
     sort = V.modify Heap.sort

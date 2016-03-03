@@ -2,10 +2,10 @@ module Main (main) where
 
 
 
-import Criterion.Main
-import qualified Data.Vector as V
+import           Criterion.Main
+import qualified Data.Vector    as V
 
-import qualified Sorting                     as Subject
+import qualified Sorting        as Subject
 
 
 
