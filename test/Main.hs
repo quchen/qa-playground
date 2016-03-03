@@ -43,43 +43,43 @@ sortingTests
     :: Gen (Vector Int)
     -> (Vector Int -> Vector Int)
     -> [TestTree]
-sortingTests gen algorithm =
+sortingTests gen f =
     [ testGroup "Quickcheck"
         [ testProperty
             "Leaves sorted input invariant"
             (forAll (fmap sort gen)
-                    (algorithm ~~ id))
+                    (f ~~ id))
         , testProperty
             "Leaves length invariant"
             (forAll gen
-                    (length . algorithm ~~ length))
+                    (length . f ~~ length))
         , testProperty
             "Reversal of input doesn't matter"
             (forAll gen
-                    (algorithm . V.reverse ~~ algorithm))
+                    (f . V.reverse ~~ f))
         , testProperty
             "Is idempotent"
             (forAll gen
-                    (algorithm . algorithm ~~ algorithm))
+                    (f . f ~~ f))
         , testProperty
             "Agrees with library sort function"
             (forAll gen
-                    (algorithm ~~ sort))
+                    (f ~~ sort))
         ]
     , testGroup "HUnit"
         [ testCase
             "Empty vector"
-            (assertEqual "Sorting nothing does nothing" [] (algorithm []))
+            (assertEqual "Sorting nothing does nothing" [] (f []))
         , testCase
             "Example case: sort [7,9,6,5,3,2,1,8,0,4] = [0..9]"
             (let expected = [0..9::Int]
-                 actual = algorithm [7,9,6,5,3,2,1,8,0,4]
+                 actual = f [7,9,6,5,3,2,1,8,0,4]
              in assertEqual "" expected actual )
         , testCaseSteps "Sorting powers of two" (\step -> do
                 step "Prepare input"
                 -- Ignore that Haskell is lazy for a moment :-)
                 let expected = V.fromList (take 10 (iterate (*2) 1))
-                    actual = algorithm (V.fromList (map ((2::Int)^) [0..9::Int]))
+                    actual = f (V.fromList (map ((2::Int)^) [0..9::Int]))
                 step "Perform test"
                 assertEqual "" expected actual)
         ]
