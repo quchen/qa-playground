@@ -31,10 +31,10 @@ test-suite qa-playground-test
   main-is:             Main.hs
   build-depends:       base
                      , qa-playground
-                     , QuickCheck
                      , tasty
                      , tasty-hunit
-                     , tasty-quickcheck
+                     , tasty-quickcheck, QuickCheck
+                     , tasty-smallcheck, smallcheck
                      , vector
                      , vector-algorithms
   ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N

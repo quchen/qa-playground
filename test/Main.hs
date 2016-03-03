@@ -1,5 +1,9 @@
-{-# LANGUAGE OverloadedLists     #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedLists       #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Main (main) where
 
@@ -9,10 +13,11 @@ import           Control.Applicative
 import           Data.Vector                 (Vector)
 import qualified Data.Vector                 as V
 import qualified Data.Vector.Algorithms.Heap as Heap
-import           Test.QuickCheck
+import           Test.SmallCheck.Series      as SC
 import           Test.Tasty
-import           Test.Tasty.HUnit
-import           Test.Tasty.QuickCheck
+import           Test.Tasty.HUnit            as HU
+import           Test.Tasty.QuickCheck       as QC
+import           Test.Tasty.SmallCheck       as SC
 
 import qualified Sorting                     as Subject
 
@@ -20,11 +25,15 @@ import qualified Sorting                     as Subject
 
 main :: IO ()
 main = do
-    let quickcheckOptions =
-              localOption (QuickCheckShowReplay False)
-            . localOption (QuickCheckTests 1000)
-            . localOption (QuickCheckMaxSize 100)
-    defaultMain . quickcheckOptions $
+    let options = quickcheckOptions . smallcheckOptions
+          where
+            quickcheckOptions =
+                  localOption (QuickCheckShowReplay False)
+                . localOption (QuickCheckTests 1000)
+                . localOption (QuickCheckMaxSize 100)
+            smallcheckOptions =
+                  localOption (SmallCheckDepth 5)
+    defaultMain . options $
         testGroup "Sorting"
             [ testGroup "Quicksort" (sortingTests arbitraryVector Subject.quicksort)
 
@@ -39,32 +48,45 @@ main = do
 arbitraryVector :: Gen (Vector Int)
 arbitraryVector = fmap V.fromList arbitrary
 
+instance Serial m a => Serial m (Vector a) where
+    series = fmap V.fromList series
+
 sortingTests
     :: Gen (Vector Int)
     -> (Vector Int -> Vector Int)
     -> [TestTree]
 sortingTests gen f =
-    [ testGroup "Quickcheck"
-        [ testProperty
+    [ testGroup "QuickCheck"
+        [ QC.testProperty
             "Leaves sorted input invariant"
-            (forAll (fmap sort gen)
+            (QC.forAll (fmap sort gen)
                     (f ~~ id))
-        , testProperty
+        , QC.testProperty
             "Leaves length invariant"
-            (forAll gen
+            (QC.forAll gen
                     (length . f ~~ length))
-        , testProperty
+        , QC.testProperty
             "Reversal of input doesn't matter"
-            (forAll gen
+            (QC.forAll gen
                     (f . V.reverse ~~ f))
-        , testProperty
+        , QC.testProperty
             "Is idempotent"
-            (forAll gen
+            (QC.forAll gen
                     (f . f ~~ f))
-        , testProperty
+        , QC.testProperty
             "Agrees with library sort function"
-            (forAll gen
+            (QC.forAll gen
                     (f ~~ sort))
+        ]
+    , testGroup "SmallCheck"
+        [ SC.testProperty
+            "Only [] maps to []"
+            (SC.existsUnique (\xs -> f xs == []))
+        , SC.testProperty
+            "Sorted list contains the smallest element of the input"
+            (SC.forAll (\xs ->
+                not (V.null xs) SC.==>
+                    V.find (== V.head (f xs)) xs == Just (V.minimum xs)))
         ]
     , testGroup "HUnit"
         [ testCase
@@ -91,6 +113,6 @@ sortingTests gen f =
 (~~) :: (Show b, Eq b)
      => (a -> b)
      -> (a -> b)
-     -> (a -> Property)
+     -> (a -> QC.Property)
 (~~) = liftA2 (===)
 infixl 2 ~~
