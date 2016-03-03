@@ -24,17 +24,20 @@ import qualified Sorting                     as Subject
 
 
 main :: IO ()
-main = do
-    let options = quickcheckOptions . smallcheckOptions
-          where
-            quickcheckOptions =
-                  localOption (QuickCheckShowReplay False)
-                . localOption (QuickCheckTests 1000)
-                . localOption (QuickCheckMaxSize 100)
-            smallcheckOptions =
-                  localOption (SmallCheckDepth 5)
-    defaultMain . options $
-        testGroup "Sorting"
+main = defaultMain (options testsuite)
+
+options :: TestTree -> TestTree
+options = quickcheckOptions . smallcheckOptions
+  where
+    quickcheckOptions =
+          localOption (QuickCheckShowReplay False)
+        . localOption (QuickCheckTests 1000)
+        . localOption (QuickCheckMaxSize 100)
+    smallcheckOptions =
+          localOption (SmallCheckDepth 5)
+
+testsuite :: TestTree
+testsuite = testGroup "Sorting algorithms"
             [ testGroup "Quicksort" (sortingTests arbitraryVector Subject.quicksort)
 
             -- Test generators are scaled down so this won't dominate the test time taken
@@ -52,35 +55,31 @@ instance Serial m a => Serial m (Vector a) where
     series = fmap V.fromList series
 
 sortingTests
-    :: Gen (Vector Int)
+    :: Gen (Vector Int) -- ^ Quickcheck generator, passed as argument so
+                        -- Slowsort doesn't take forever with its atrociously
+                        -- bad performance :-)
     -> (Vector Int -> Vector Int)
     -> [TestTree]
 sortingTests gen f =
     [ testGroup "QuickCheck"
         [ QC.testProperty
             "Leaves sorted input invariant"
-            (QC.forAll (fmap sort gen)
-                    (f ~~ id))
+            (QC.forAll (fmap sort gen) (f ~~ id))
         , QC.testProperty
             "Leaves length invariant"
-            (QC.forAll gen
-                    (length . f ~~ length))
+            (QC.forAll gen (length . f ~~ length))
         , QC.testProperty
             "Reversal of input doesn't matter"
-            (QC.forAll gen
-                    (f . V.reverse ~~ f))
+            (QC.forAll gen (f . V.reverse ~~ f))
         , QC.testProperty
             "Is idempotent"
-            (QC.forAll gen
-                    (f . f ~~ f))
+            (QC.forAll gen (f . f ~~ f))
         , QC.testProperty
             "Agrees with library sort function"
-            (QC.forAll gen
-                    (f ~~ sort))
+            (QC.forAll gen (f ~~ sort))
         , QC.testProperty
             "All vectors are palindromes"
-            (QC.forAll gen
-                    (f ~~ V.reverse . sort))
+            (QC.forAll gen (f ~~ V.reverse . sort))
         ]
     , testGroup "SmallCheck"
         [ SC.testProperty
@@ -104,12 +103,12 @@ sortingTests gen f =
                  actual = f [7,9,6,5,3,2,1,8,0,4]
              in assertEqual "" expected actual )
         , testCaseSteps "Sorting powers of two" (\step -> do
-                step "Prepare input"
-                -- Ignore that Haskell is lazy for a moment :-)
-                let expected = V.fromList (take 10 (iterate (*2) 1))
-                    actual = f (V.fromList (map ((2::Int)^) [0..9::Int]))
-                step "Perform test"
-                assertEqual "" expected actual)
+            step "Prepare input"
+            -- Ignore that Haskell is lazy for a moment :-)
+            let expected = V.fromList (take 10 (iterate (*2) 1))
+                actual = f (V.fromList (map ((2::Int)^) [0..9::Int]))
+            step "Perform test"
+            assertEqual "" expected actual)
         ]
     ]
   where
