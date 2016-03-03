@@ -1,7 +1,16 @@
 module Sorting
     ( quicksort
+    , quicksortST
+
     , slowsort
+    , slowsortST
+
     , selectionsort
+    , selectionsortST
+
+    , bubblesort
+    , bubblesortST
+
     )
 where
 
@@ -30,16 +39,16 @@ quicksortST vec = do
 
 quickPartition :: Ord a => MVector s a -> ST s (MVector s a, MVector s a)
 quickPartition vec = do
-    pivot <- VM.unsafeRead vec 0
+    pivot <- VM.read vec 0
     iRef <- newSTRef 1
     for_ [1 .. VM.length vec - 1] (\focusIx -> do
-        focus <- VM.unsafeRead vec focusIx
+        focus <- VM.read vec focusIx
         when (focus < pivot) (do
             i <- readSTRef iRef
-            VM.unsafeSwap vec i focusIx
+            VM.swap vec i focusIx
             modifySTRef' iRef (+1) ))
     pivotDestination <- fmap (subtract 1) (readSTRef iRef)
-    VM.unsafeSwap vec 0 pivotDestination
+    VM.swap vec 0 pivotDestination
     let (beforePivot, fromPivot) = VM.splitAt pivotDestination vec
     pure (beforePivot, VM.tail fromPivot)
 
@@ -56,12 +65,8 @@ slowsortST vec = do
         (firstHalf, secondHalf) = VM.splitAt middle vec
     slowsortST firstHalf
     slowsortST secondHalf
-    i <- VM.unsafeRead vec 0
-    m <- VM.unsafeRead vec middle
-    when (i > m) (VM.unsafeSwap vec 0 middle)
+    sort2 vec 0 middle
     slowsortST (VM.tail vec)
-
-
 
 
 selectionsort :: Ord a => Vector a -> Vector a
@@ -71,15 +76,36 @@ selectionsortST :: Ord a => MVector s a -> ST s ()
 selectionsortST vec
     | VM.length vec <= 1 = pure ()
 selectionsortST vec = do
-    minIndex <- do
-        candidateValueRef <- newSTRef =<< VM.unsafeRead vec 0
-        candidateIx <- newSTRef 0
-        for_ [1 .. VM.length vec - 1] (\i -> do
-            v <- VM.unsafeRead vec i
-            candidateValue <- readSTRef candidateValueRef
-            when (v < candidateValue) (do
-                writeSTRef candidateValueRef v
-                writeSTRef candidateIx i ))
-        readSTRef candidateIx
-    VM.unsafeSwap vec 0 minIndex
+    i <- minIndex vec
+    VM.swap vec 0 i
     selectionsortST (VM.tail vec)
+
+minIndex :: Ord a => MVector s a -> ST s Int
+minIndex vec = do
+    candidateValueRef <- newSTRef =<< VM.read vec 0
+    candidateIx <- newSTRef 0
+    for_ [1 .. VM.length vec - 1] (\i -> do
+        v <- VM.read vec i
+        candidateValue <- readSTRef candidateValueRef
+        when (v < candidateValue) (do
+            writeSTRef candidateValueRef v
+            writeSTRef candidateIx i ))
+    readSTRef candidateIx
+
+
+bubblesort :: Ord a => Vector a -> Vector a
+bubblesort = V.modify bubblesortST
+
+bubblesortST :: Ord a => MVector s a -> ST s ()
+bubblesortST vec =
+    for_ [0 .. VM.length vec - 2] (\i ->
+        for_ [i+1 .. VM.length vec - 1] (\j -> sort2 vec i j) )
+
+
+-- | Modify the 'MVector' so that the values at the given indices
+-- are in order.
+sort2 :: Ord a => MVector s a -> Int -> Int -> ST s ()
+sort2 vec i j = do
+    vi <- VM.read vec i
+    vj <- VM.read vec j
+    when (vi > vj) (VM.swap vec i j)
