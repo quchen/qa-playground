@@ -10,16 +10,18 @@ module Main (main) where
 
 
 import           Control.Applicative
-import           Data.Vector                 (Vector)
-import qualified Data.Vector                 as V
-import qualified Data.Vector.Algorithms.Heap as Heap
-import           Test.SmallCheck.Series      as SC
+import           Data.Monoid
+import           Data.Vector                (Vector)
+import qualified Data.Vector                as V
+import qualified Data.Vector.Algorithms.Tim as Tim
+import           Test.SmallCheck.Series     as SC
 import           Test.Tasty
-import           Test.Tasty.HUnit            as HU
-import           Test.Tasty.QuickCheck       as QC
-import           Test.Tasty.SmallCheck       as SC
+import           Test.Tasty.HUnit           as HU
+import           Test.Tasty.QuickCheck      as QC
+import           Test.Tasty.SmallCheck      as SC
 
-import qualified Sorting                     as Subject
+import qualified Shuffle                    as Subject
+import qualified Sort                       as Subject
 
 
 
@@ -37,22 +39,36 @@ options = quickcheckOptions . smallcheckOptions
           localOption (SmallCheckDepth 5)
 
 testsuite :: TestTree
-testsuite = testGroup "Sorting algorithms"
-            [ testGroup "Quicksort" (sortingTests arbitraryVector Subject.quicksort)
-
-            -- Test generators are scaled down so this won't dominate the test time taken
-            , testGroup "Slowsort" (sortingTests (scale (min 24) arbitraryVector) Subject.slowsort)
-
-            , testGroup "Selection sort" (sortingTests arbitraryVector Subject.selectionsort)
-
-            , testGroup "Bubblesort" (sortingTests arbitraryVector Subject.bubblesort)
+testsuite =
+    testGroup "Testsuite"
+        [ testGroup "Sorting algorithms"
+            [ testGroup "Quicksort" quicksortTests
+            , testGroup "Slowsort" slowsortTests
+            , testGroup "Selection sort" selectionsortTests
+            , testGroup "Bubblesort" bubblesortTests
             ]
+        , testGroup "Shuffling algorithms"
+            [ testGroup "Fisher-Yates" fisherYatesTests ]
+        ]
 
-arbitraryVector :: Gen (Vector Int)
-arbitraryVector = fmap V.fromList arbitrary
+quicksortTests :: [TestTree]
+quicksortTests = sortingTests arbitrary Subject.quicksort
+
+-- Test generators are scaled down so this won't dominate the test time taken
+slowsortTests :: [TestTree]
+slowsortTests = sortingTests (scale (min 24) arbitrary) Subject.slowsort
+
+selectionsortTests :: [TestTree]
+selectionsortTests = sortingTests arbitrary Subject.selectionsort
+
+bubblesortTests :: [TestTree]
+bubblesortTests = sortingTests arbitrary Subject.bubblesort
 
 instance Serial m a => Serial m (Vector a) where
     series = fmap V.fromList series
+
+instance Arbitrary a => Arbitrary (Vector a) where
+    arbitrary = fmap V.fromList arbitrary
 
 sortingTests
     :: Gen (Vector Int) -- ^ Quickcheck generator, passed as argument so
@@ -80,11 +96,16 @@ sortingTests gen f =
         , QC.testProperty
             "All vectors are palindromes"
             (QC.forAll gen (f ~~ V.reverse . sort))
+        , QC.testProperty
+            "Result is in ascending order"
+            (QC.forAll gen (\xs -> V.length xs >= 2 QC.==>
+                let isAscending ys = V.and (V.zipWith (<=) ys (V.tail ys))
+                in isAscending (f xs) ))
         ]
     , testGroup "SmallCheck"
         [ SC.testProperty
             "Only [] maps to []"
-            (SC.existsUnique (\xs -> f xs == []))
+            (SC.existsUnique (V.null . f))
         , SC.testProperty
             "Only one input sorts to a singleton vector"
             (SC.existsUnique (\xs -> V.length (f xs) == 1))
@@ -111,13 +132,45 @@ sortingTests gen f =
             assertEqual "" expected actual)
         ]
     ]
-  where
-    sort = V.modify Heap.sort
 
--- | Pointwise equality of functions
-(~~) :: (Show b, Eq b)
+sort :: Ord a => Vector a -> Vector a
+sort = V.modify Tim.sort
+
+(~~), (/~)
+    :: (Show b, Eq b)
      => (a -> b)
      -> (a -> b)
-     -> (a -> QC.Property)
+     -> a
+     -> QC.Property
+ -- | Pointwise equality of functions
 (~~) = liftA2 (===)
+-- | Pointwise inequality of functions
+f /~ g = \x ->
+    let fx = f x; gx = g x
+    in counterexample (show fx <> " == " <> show gx) (fx /= gx)
 infixl 2 ~~
+infixl 2 /~
+
+
+fisherYatesTests :: [TestTree]
+fisherYatesTests =
+    [ QC.testProperty
+        "Length unchanged"
+        (\seed vec -> (V.length . f seed ~~ V.length) vec)
+    , QC.testProperty
+        "Sum unchanged"
+        (\seed vec -> (V.sum . f seed ~~ V.sum) vec)
+    , QC.testProperty
+        "Product unchanged"
+        (\seed vec -> (V.product . f seed ~~ V.product) vec)
+    , QC.testProperty
+        "Permutation of input"
+        (\seed vec -> (sort . f seed ~~ sort) vec)
+    , QC.testProperty
+        "Different seeds yield different output"
+        (\seed1 seed2 -> seed1 /= seed2 QC.==>
+            (f seed1 /~ f seed2) [1..1000::Int])
+    ]
+  where
+    f :: Int -> Vector Int -> Vector Int
+    f = Subject.fisherYatesSeeded

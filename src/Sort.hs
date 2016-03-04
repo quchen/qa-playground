@@ -1,4 +1,4 @@
-module Sorting
+module Sort
     ( quicksort
     , quicksortST
 
