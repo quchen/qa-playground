@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedLists #-}
 
 module Shuffle
-    ( fisherYates
-    , fisherYatesSeeded
-    , fisherYatesST
+    ( -- * Fisher-Yates algorithm
+      fisherYatesSeeded
+    , fisherYates
     , fisherYatesSeededST
+    , fisherYatesST
     )
 where
 
@@ -19,20 +20,25 @@ import           System.Random.TF.Gen
 import           System.Random.TF.Init
 import           System.Random.TF.Instances
 
+-- $setup
+-- >>> :set -XOverloadedLists
 
+-- | Shuffle a 'Vector' with a specific seed for the RNG using the
+-- <https://en.wikipedia.org/wiki/Fisher-Yates Fisher-Yates algorithm>.
+--
+-- >>> fisherYatesSeeded 123 [1..10]
+-- [5,7,1,3,2,8,10,4,9,6]
+--
+fisherYatesSeeded :: Int -> Vector a -> Vector a
+fisherYatesSeeded seed vec = fst (fisherYates (mkTFGen seed) vec)
 
--- | Randomly permute the elements of a 'Vector' using the Fisher-Yates
--- algorithm.
+-- | Shuffle a 'Vector' using the provided 'RandomGen'.
 fisherYates :: RandomGen gen => gen -> Vector a -> (Vector a, gen)
 fisherYates gen vec = runST (do
     vecMut <- V.thaw vec
     gen' <- fisherYatesST gen vecMut
     vec' <- V.unsafeFreeze vecMut
     pure (vec', gen') )
-
--- | 'fisherYates' with a specific seed for the RNG.
-fisherYatesSeeded :: Int -> Vector a -> Vector a
-fisherYatesSeeded seed vec = fst (fisherYates (mkTFGen seed) vec)
 
 -- | In-place 'fisherYates'.
 fisherYatesST :: RandomGen gen => gen -> MVector s a -> ST s gen

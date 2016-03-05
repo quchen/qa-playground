@@ -14,6 +14,7 @@ import           Data.Monoid
 import           Data.Vector                (Vector)
 import qualified Data.Vector                as V
 import qualified Data.Vector.Algorithms.Tim as Tim
+import           System.Random.TF.Init      (mkTFGen)
 import           Test.SmallCheck.Series     as SC
 import           Test.Tasty
 import           Test.Tasty.HUnit           as HU
@@ -148,8 +149,14 @@ sort = V.modify Tim.sort
 f /~ g = \x ->
     let fx = f x; gx = g x
     in counterexample (show fx <> " == " <> show gx) (fx /= gx)
-infixl 2 ~~
-infixl 2 /~
+infix 4 ~~
+infix 4 /~
+
+infix 4 /==
+(/==) :: (Eq a, Show a) => a -> a -> QC.Property
+x /== y =
+  counterexample (show x ++ " == " ++ show y) (x /= y)
+
 
 
 fisherYatesTests :: [TestTree]
@@ -170,6 +177,17 @@ fisherYatesTests =
         "Different seeds yield different output"
         (\seed1 seed2 -> seed1 /= seed2 QC.==>
             (f seed1 /~ f seed2) [1..1000::Int])
+    , QC.testProperty
+        "fisherYatesSeeded matches its ST version"
+        (\seed (vec :: Vector Int) -> (===)
+            (Subject.fisherYatesSeeded seed vec)
+            (V.modify (Subject.fisherYatesSeededST seed) vec))
+    , QC.testProperty
+        "Generator is modified in the process"
+        (\seed (vec :: Vector Int) -> V.length vec > 1 QC.==>
+            let gen = mkTFGen seed
+                (_vec, gen') = Subject.fisherYates (mkTFGen seed) vec
+            in show gen /== show gen' )
     ]
   where
     f :: Int -> Vector Int -> Vector Int

@@ -26,9 +26,14 @@ import qualified Data.Vector.Mutable as VM
 
 
 
+-- | Sort a list with the /Quicksort/ algorithm.
+--
+-- >>> quicksort [3,7,6,1,9,2,8,4,5,10]
+-- [1,2,3,4,5,6,7,8,9,10]
 quicksort :: Ord a => Vector a -> Vector a
 quicksort = V.modify quicksortST
 
+-- | In-place Quicksort.
 quicksortST :: Ord a => MVector s a -> ST s ()
 quicksortST vec
     | VM.length vec <= 1 = pure ()
@@ -53,7 +58,10 @@ quickPartition vec = do
     pure (beforePivot, VM.tail fromPivot)
 
 
-
+-- | Sort a list with the absurdly inefficient /Slowsort/ algorithm.
+--
+-- >>> slowsort [7,5,9,8,2,4,1,10,6,3]
+-- [1,2,3,4,5,6,7,8,9,10]
 slowsort :: Ord a => Vector a -> Vector a
 slowsort = V.modify slowsortST
 
@@ -69,6 +77,10 @@ slowsortST vec = do
     slowsortST (VM.tail vec)
 
 
+-- | Sort a list with the /Selection Sort/ algorithm.
+--
+-- >>> selectionsort [3,5,2,10,7,8,9,4,1,6]
+-- [1,2,3,4,5,6,7,8,9,10]
 selectionsort :: Ord a => Vector a -> Vector a
 selectionsort = V.modify selectionsortST
 
@@ -93,6 +105,10 @@ minIndex vec = do
     readSTRef candidateIx
 
 
+-- | Sort a list with the inefficient /Bubblesort/ algorithm.
+--
+-- >>> bubblesort [5,10,9,6,3,2,7,4,1,8]
+-- [1,2,3,4,5,6,7,8,9,10]
 bubblesort :: Ord a => Vector a -> Vector a
 bubblesort = V.modify bubblesortST
 
