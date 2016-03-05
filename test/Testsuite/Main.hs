@@ -124,11 +124,11 @@ sortingTests gen f =
             (let expected = [0..9::Int]
                  actual = f [7,9,6,5,3,2,1,8,0,4]
              in assertEqual "" expected actual )
-        , testCaseSteps "Sorting powers of two" (\step -> do
+        , testCaseSteps "Sorting powers of two, in steps" (\step -> do
             step "Prepare input"
             -- Ignore that Haskell is lazy for a moment :-)
-            let expected = V.fromList (take 10 (iterate (*2) 1))
-                actual = f (V.fromList (map ((2::Int)^) [0..9::Int]))
+            let expected = [1,2,4,8,16,32,64,128,256,512]
+                actual = f [4,64,2,128,8,32,512,16,256,1]
             step "Perform test"
             assertEqual "" expected actual)
         ]
