@@ -5,7 +5,7 @@ module Main (main) where
 import           Criterion.Main
 import qualified Data.Vector    as V
 
-import qualified Sort        as Subject
+import qualified Sort           as Subject
 
 
 

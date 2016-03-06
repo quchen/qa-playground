@@ -10,12 +10,12 @@ where
 
 
 import           Control.Monad
+import           Control.Monad.Primitive    (PrimMonad, PrimState)
 import           Data.Vector                (MVector)
 import qualified Data.Vector.Mutable        as VM
 import           System.Random.TF.Gen
 import           System.Random.TF.Init
 import           System.Random.TF.Instances
-import Control.Monad.Primitive (PrimMonad, PrimState)
 
 -- $setup
 -- >>> :set -XOverloadedLists

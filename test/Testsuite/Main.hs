@@ -1,9 +1,5 @@
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedLists       #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
-
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Main (main) where
 
@@ -16,11 +12,12 @@ import           Data.Vector                (Vector)
 import qualified Data.Vector                as V
 import qualified Data.Vector.Algorithms.Tim as Tim
 import           System.Random.TF.Init      (mkTFGen)
-import           Test.SmallCheck.Series     as SC
 import           Test.Tasty
 import           Test.Tasty.HUnit           as HU
 import           Test.Tasty.QuickCheck      as QC
 import           Test.Tasty.SmallCheck      as SC
+
+import           Orphans                    ()
 
 import qualified Shuffle                    as Subject
 import qualified Sort                       as Subject
@@ -65,12 +62,6 @@ selectionsortTests = sortingTests arbitrary (V.modify Subject.selectionsort)
 
 bubblesortTests :: [TestTree]
 bubblesortTests = sortingTests arbitrary (V.modify Subject.bubblesort)
-
-instance Serial m a => Serial m (Vector a) where
-    series = fmap V.fromList series
-
-instance Arbitrary a => Arbitrary (Vector a) where
-    arbitrary = fmap V.fromList arbitrary
 
 sortingTests
     :: Gen (Vector Int) -- ^ Quickcheck generator, passed as argument so
