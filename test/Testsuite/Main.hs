@@ -155,16 +155,16 @@ fisherYatesTests :: [TestTree]
 fisherYatesTests =
     [ QC.testProperty
         "Length unchanged"
-        (\seed vec -> (V.length . f seed ~~ V.length) vec)
+        (\seed -> V.length . f seed ~~ V.length)
     , QC.testProperty
         "Sum unchanged"
-        (\seed vec -> (V.sum . f seed ~~ V.sum) vec)
+        (\seed -> V.sum . f seed ~~ V.sum)
     , QC.testProperty
         "Product unchanged"
-        (\seed vec -> (V.product . f seed ~~ V.product) vec)
+        (\seed -> V.product . f seed ~~ V.product)
     , QC.testProperty
         "Permutation of input"
-        (\seed vec -> (libSort . f seed ~~ libSort) vec)
+        (\seed -> libSort . f seed ~~ libSort)
     , QC.testProperty
         "Different seeds yield different output"
         (\seed1 seed2 -> seed1 /= seed2 QC.==>
