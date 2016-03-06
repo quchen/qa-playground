@@ -181,7 +181,7 @@ fisherYatesTests =
         "fisherYatesSeeded matches its ST version"
         (\seed (vec :: Vector Int) -> (===)
             (Subject.fisherYatesSeeded seed vec)
-            (V.modify (Subject.fisherYatesSeededST seed) vec))
+            (V.modify (Subject.fisherYatesSeededInplace seed) vec))
     , QC.testProperty
         "Generator is modified in the process"
         (\seed (vec :: Vector Int) -> V.length vec > 1 QC.==>

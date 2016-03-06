@@ -4,8 +4,8 @@ module Shuffle
     ( -- * Fisher-Yates algorithm
       fisherYatesSeeded
     , fisherYates
-    , fisherYatesSeededST
-    , fisherYatesST
+    , fisherYatesSeededInplace
+    , fisherYatesInplace
     )
 where
 
@@ -19,9 +19,12 @@ import qualified Data.Vector.Mutable        as VM
 import           System.Random.TF.Gen
 import           System.Random.TF.Init
 import           System.Random.TF.Instances
+import Control.Monad.Primitive (PrimMonad, PrimState)
 
 -- $setup
 -- >>> :set -XOverloadedLists
+
+
 
 -- | Shuffle a 'Vector' with a specific seed for the RNG using the
 -- <https://en.wikipedia.org/wiki/Fisher-Yates Fisher-Yates algorithm>.
@@ -36,19 +39,27 @@ fisherYatesSeeded seed vec = fst (fisherYates (mkTFGen seed) vec)
 fisherYates :: RandomGen gen => gen -> Vector a -> (Vector a, gen)
 fisherYates gen vec = runST (do
     vecMut <- V.thaw vec
-    gen' <- fisherYatesST gen vecMut
+    gen' <- fisherYatesInplace gen vecMut
     vec' <- V.unsafeFreeze vecMut
     pure (vec', gen') )
 
 -- | In-place 'fisherYates'.
-fisherYatesST :: RandomGen gen => gen -> MVector s a -> ST s gen
-fisherYatesST gen vec
+fisherYatesInplace
+    :: (PrimMonad m, RandomGen gen)
+    => gen
+    -> MVector (PrimState m) a
+    -> m gen
+fisherYatesInplace gen vec
     | VM.length vec <= 1 = pure gen
-fisherYatesST gen vec = do
+fisherYatesInplace gen vec = do
     let (r, gen') = randomR (0, VM.length vec - 1) gen
     VM.swap vec 0 r
-    fisherYatesST gen' (VM.tail vec)
+    fisherYatesInplace gen' (VM.tail vec)
 
 -- | In-place 'fisherYates' with a specific seed for the RNG.
-fisherYatesSeededST :: Int -> MVector s a -> ST s ()
-fisherYatesSeededST seed vec = void (fisherYatesST (mkTFGen seed) vec)
+fisherYatesSeededInplace
+    :: PrimMonad m
+    => Int
+    -> MVector (PrimState m) a
+    -> m ()
+fisherYatesSeededInplace seed vec = void (fisherYatesInplace (mkTFGen seed) vec)
