@@ -16,6 +16,7 @@ import           Data.Vector         (MVector)
 import qualified Data.Vector.Mutable as VM
 
 -- $setup
+-- >>> :set -XOverloadedLists
 -- >>> import qualified Data.Vector as V
 
 
@@ -93,7 +94,9 @@ minIndex vec = do
 bubblesort :: Ord a => MVector s a -> ST s ()
 bubblesort vec =
     for_ [0 .. VM.length vec - 2] (\i ->
-        for_ [i+1 .. VM.length vec - 1] (\j -> sort2 vec i j) )
+        for_ [i+1 .. VM.length vec - 1] (\j ->
+            sort2 vec i j) )
+{-# ANN bubblesort "HLint: ignore Avoid lambda" #-}
 
 -- | Modify the 'MVector' so that the values at the given indices
 -- are in order.
