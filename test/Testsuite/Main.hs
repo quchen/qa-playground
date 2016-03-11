@@ -1,5 +1,5 @@
-{-# LANGUAGE OverloadedLists       #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE OverloadedLists     #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Main (main) where
 

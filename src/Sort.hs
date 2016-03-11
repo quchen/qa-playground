@@ -1,10 +1,16 @@
 module Sort
     ( quicksort
+    , quicksortBy
+
     , slowsort
+    , slowsortBy
+
     , selectionsort
+    , selectionsortBy
+
     , bubblesort
-    )
-where
+    , bubblesortBy
+) where
 
 
 
@@ -26,20 +32,27 @@ import qualified Data.Vector.Mutable as VM
 -- >>> V.modify quicksort [3,7,6,1,9,2,8,4,5,10]
 -- [1,2,3,4,5,6,7,8,9,10]
 quicksort :: Ord a => MVector s a -> ST s ()
-quicksort vec
-    | VM.length vec <= 1 = pure ()
-quicksort vec = do
-    (first, second) <- quickPartition vec
-    quicksort first
-    quicksort second
+quicksort = quicksortBy compare
 
-quickPartition :: Ord a => MVector s a -> ST s (MVector s a, MVector s a)
-quickPartition vec = do
+-- | Non-overloaded version of 'quicksort'.
+quicksortBy :: (a -> a -> Ordering) -> MVector s a -> ST s ()
+quicksortBy _cmp vec
+    | VM.length vec <= 1 = pure ()
+quicksortBy cmp vec = do
+    (first, second) <- quickPartitionBy cmp vec
+    quicksortBy cmp first
+    quicksortBy cmp second
+
+quickPartitionBy
+    :: (a -> a -> Ordering)
+    -> MVector s a
+    -> ST s (MVector s a, MVector s a)
+quickPartitionBy cmp vec = do
     pivot <- VM.read vec 0
     iRef <- newSTRef 1
     for_ [1 .. VM.length vec - 1] (\focusIx -> do
         focus <- VM.read vec focusIx
-        when (focus < pivot) (do
+        when (cmp focus pivot /= GT) (do
             i <- readSTRef iRef
             VM.swap vec i focusIx
             modifySTRef' iRef (+1) ))
@@ -48,60 +61,78 @@ quickPartition vec = do
     let (beforePivot, fromPivot) = VM.splitAt pivotDestination vec
     pure (beforePivot, VM.tail fromPivot)
 
+
+
 -- | Sort a list in-place with the absurdly inefficient /Slowsort/ algorithm.
 --
 -- >>> V.modify slowsort [7,5,9,8,2,4,1,10,6,3]
 -- [1,2,3,4,5,6,7,8,9,10]
 slowsort :: Ord a => MVector s a -> ST s ()
-slowsort vec
+slowsort = slowsortBy compare
+
+-- | Non-overloaded version of 'slowsort'.
+slowsortBy :: (a -> a -> Ordering) -> MVector s a -> ST s ()
+slowsortBy _cmp vec
     | VM.length vec <= 1 = pure ()
-slowsort vec = do
+slowsortBy cmp vec = do
     let middle = VM.length vec `quot` 2
         (firstHalf, secondHalf) = VM.splitAt middle vec
-    slowsort firstHalf
-    slowsort secondHalf
-    sort2 vec 0 middle
-    slowsort (VM.tail vec)
+    slowsortBy cmp firstHalf
+    slowsortBy cmp secondHalf
+    sort2By cmp vec 0 middle
+    slowsortBy cmp (VM.tail vec)
+
+
 
 -- | Sort a list with the /Selection Sort/ algorithm.
 --
 -- >>> V.modify selectionsort [3,5,2,10,7,8,9,4,1,6]
 -- [1,2,3,4,5,6,7,8,9,10]
 selectionsort :: Ord a => MVector s a -> ST s ()
-selectionsort vec
-    | VM.length vec <= 1 = pure ()
-selectionsort vec = do
-    i <- minIndex vec
-    VM.swap vec 0 i
-    selectionsort (VM.tail vec)
+selectionsort = selectionsortBy compare
 
-minIndex :: Ord a => MVector s a -> ST s Int
-minIndex vec = do
+-- | Non-overloaded version of 'selectionsort'.
+selectionsortBy :: (a -> a -> Ordering) -> MVector s a -> ST s ()
+selectionsortBy _cmp vec
+    | VM.length vec <= 1 = pure ()
+selectionsortBy cmp vec = do
+    i <- minIndexBy cmp vec
+    VM.swap vec 0 i
+    selectionsortBy cmp (VM.tail vec)
+
+minIndexBy :: (a -> a -> Ordering) -> MVector s a -> ST s Int
+minIndexBy cmp vec = do
     candidateValueRef <- newSTRef =<< VM.read vec 0
     candidateIx <- newSTRef 0
     for_ [1 .. VM.length vec - 1] (\i -> do
         v <- VM.read vec i
         candidateValue <- readSTRef candidateValueRef
-        when (v < candidateValue) (do
+        when (cmp v candidateValue == LT) (do
             writeSTRef candidateValueRef v
             writeSTRef candidateIx i ))
     readSTRef candidateIx
+
+
 
 -- | Sort a list with the inefficient /Bubblesort/ algorithm.
 --
 -- >>> V.modify bubblesort [5,10,9,6,3,2,7,4,1,8]
 -- [1,2,3,4,5,6,7,8,9,10]
 bubblesort :: Ord a => MVector s a -> ST s ()
-bubblesort vec =
+bubblesort = bubblesortBy compare
+
+-- | Non-overloaded version of 'bubblesort'.
+bubblesortBy :: (a -> a -> Ordering) -> MVector s a -> ST s ()
+bubblesortBy cmp vec =
     for_ [0 .. VM.length vec - 2] (\i ->
         for_ [i+1 .. VM.length vec - 1] (\j ->
-            sort2 vec i j) )
-{-# ANN bubblesort "HLint: ignore Avoid lambda" #-}
+            sort2By cmp vec i j) )
+{-# ANN bubblesortBy "HLint: ignore Avoid lambda" #-}
 
 -- | Modify the 'MVector' so that the values at the given indices
 -- are in order.
-sort2 :: Ord a => MVector s a -> Int -> Int -> ST s ()
-sort2 vec i j = do
+sort2By :: (a -> a -> Ordering) -> MVector s a -> Int -> Int -> ST s ()
+sort2By cmp vec i j = do
     vi <- VM.read vec i
     vj <- VM.read vec j
-    when (vi > vj) (VM.swap vec i j)
+    when (cmp vi vj == GT) (VM.swap vec i j)
