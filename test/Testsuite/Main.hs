@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedLists     #-}
+{-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Main (main) where
@@ -8,6 +9,7 @@ module Main (main) where
 import           Control.Applicative
 import           Control.Monad.ST
 import           Data.Monoid
+import           Data.Ord
 import           Data.Vector                (Vector)
 import qualified Data.Vector                as V
 import qualified Data.Vector.Algorithms.Tim as Tim
@@ -58,10 +60,20 @@ slowsortTests :: [TestTree]
 slowsortTests = sortingTests (scale (min 24) arbitrary) (V.modify Subject.slowsort)
 
 selectionsortTests :: [TestTree]
-selectionsortTests = sortingTests arbitrary (V.modify Subject.selectionsort)
+selectionsortTests = mconcat
+    [ sortingTests arbitrary (V.modify Subject.selectionsort)
+    , stableSortingTests arbitrary (\cmp vec -> V.modify (Subject.selectionsortBy cmp) vec)
+    ]
 
 bubblesortTests :: [TestTree]
 bubblesortTests = sortingTests arbitrary (V.modify Subject.bubblesort)
+
+addArbitraries
+    :: Arbitrary a
+    => Int -- ^ Number of 'arbitrary' elements to add ...
+    -> Gen (Vector a) -- ^ ... to this generator
+    -> Gen (Vector a)
+addArbitraries n = liftA2 (<>) (V.replicateM n arbitrary)
 
 sortingTests
     :: Gen (Vector Int) -- ^ Quickcheck generator, passed as argument so
@@ -73,7 +85,8 @@ sortingTests gen algorithm =
     [ testGroup "QuickCheck"
         [ QC.testProperty
             "Leaves sorted input invariant"
-            (QC.forAll (fmap libSort gen) (algorithm ~~ id))
+            (let sorted = fmap libSort gen
+             in QC.forAll sorted (algorithm ~~ id))
         , QC.testProperty
             "Leaves length invariant"
             (QC.forAll gen (length . algorithm ~~ length))
@@ -91,9 +104,9 @@ sortingTests gen algorithm =
             (QC.forAll gen (algorithm ~~ V.reverse . algorithm))
         , QC.testProperty
             "Result is in ascending order"
-            (QC.forAll gen (\xs -> V.length xs >= 2 QC.==>
-                let isAscending ys = V.and (V.zipWith (<=) ys (V.tail ys))
-                in isAscending (algorithm xs) ))
+            (let atLeastTwo = addArbitraries 2 gen
+                 isAscending xs = V.and (V.zipWith (<=) xs (V.tail xs))
+             in QC.forAll atLeastTwo (isAscending . algorithm))
         ]
     , testGroup "SmallCheck"
         [ SC.testProperty
@@ -126,6 +139,20 @@ sortingTests gen algorithm =
         ]
     ]
 
+stableSortingTests
+    :: Gen (Vector Int)
+    -> (forall a. (a -> a -> Ordering) -> Vector a -> Vector a)
+    -> [TestTree]
+stableSortingTests gen algorithmBy =
+    [ QC.testProperty "Is stable"
+        (let tuples2 = let vec2 = fmap (V.map (`mod` 10)) (addArbitraries 2 gen)
+                       in liftA2 V.zip vec2 vec2
+         in QC.forAll tuples2 (
+            algorithmBy (comparing fst) . algorithmBy (comparing snd)
+            ~~
+            algorithmBy (comparing fst <> comparing snd)))
+    ]
+
 libSort :: Ord a => Vector a -> Vector a
 libSort = V.modify Tim.sort
 
@@ -141,13 +168,11 @@ libSort = V.modify Tim.sort
 f /~ g = \x ->
     let fx = f x; gx = g x
     in counterexample (show fx <> " == " <> show gx) (fx /= gx)
-infix 4 ~~
-infix 4 /~
+infix 4 ~~, /~
 
-infix 4 /==
 (/==) :: (Eq a, Show a) => a -> a -> QC.Property
-x /== y =
-  counterexample (show x ++ " == " ++ show y) (x /= y)
+x /== y = counterexample (show x ++ " == " ++ show y) (x /= y)
+infix 4 /==
 
 
 

@@ -19,3 +19,4 @@ instance Serial m a => Serial m (Vector a) where
 
 instance Arbitrary a => Arbitrary (Vector a) where
     arbitrary = fmap V.fromList arbitrary
+    shrink = map V.fromList . shrink . V.toList
