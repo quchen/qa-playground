@@ -145,7 +145,8 @@ stableSortingTests
     -> [TestTree]
 stableSortingTests gen algorithmBy =
     [ QC.testProperty "Is stable"
-        (let tuples2 = let vec2 = fmap (V.map (`mod` 10)) (addArbitraries 2 gen)
+        (let tuples2 :: Gen (Vector (Int, Int))
+             tuples2 = let vec2 = fmap (V.map (`mod` 10)) (addArbitraries 2 gen)
                        in liftA2 V.zip vec2 vec2
          in QC.forAll tuples2 (
             algorithmBy (comparing fst) . algorithmBy (comparing snd)

@@ -96,21 +96,16 @@ selectionsortBy :: (a -> a -> Ordering) -> MVector s a -> ST s ()
 selectionsortBy _cmp vec
     | VM.length vec <= 1 = pure ()
 selectionsortBy cmp vec = do
-    i <- minIndexBy cmp vec
-    VM.swap vec 0 i
-    selectionsortBy cmp (VM.tail vec)
+    jMin <- newSTRef 0
+    for_ [0 .. VM.length vec - 1] $ \i -> do
+        writeSTRef jMin i
+        for_ [i+1 .. VM.length vec - 1] $ \j -> do
+            vj <- VM.read vec j
+            vJMin <- VM.read vec =<< readSTRef jMin
+            when (vj `cmp` vJMin == LT)
+                 (writeSTRef jMin j)
+        VM.swap vec i =<< readSTRef jMin
 
-minIndexBy :: (a -> a -> Ordering) -> MVector s a -> ST s Int
-minIndexBy cmp vec = do
-    candidateValueRef <- newSTRef =<< VM.read vec 0
-    candidateIx <- newSTRef 0
-    for_ [1 .. VM.length vec - 1] (\i -> do
-        v <- VM.read vec i
-        candidateValue <- readSTRef candidateValueRef
-        when (cmp v candidateValue == LT) (do
-            writeSTRef candidateValueRef v
-            writeSTRef candidateIx i ))
-    readSTRef candidateIx
 
 
 
